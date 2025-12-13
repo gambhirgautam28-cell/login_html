@@ -1,182 +1,127 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Astrologer Dashboard — Gautam</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- PubNub SDK -->
+<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 
 <style>
-:root{--bg:#f6f6f8;--card:#fff;--accent:#F8CFAF}
-html,body{height:100%;margin:0;font-family:Inter,system-ui;background:var(--bg)}
-.wrap{display:flex;height:100vh;padding:18px;gap:18px;box-sizing:border-box}
-.panel{background:var(--card);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.06);overflow:hidden}
-.sidebar{width:320px;display:flex;flex-direction:column}
-.head{padding:14px;display:flex;gap:12px;align-items:center;border-bottom:1px solid #eee}
-.avatar{width:46px;height:46px;border-radius:10px;background:#ddd}
-.who{font-weight:700}
-.list{flex:1;overflow:auto;padding:12px}
-.session{padding:10px;border-radius:10px;margin-bottom:8px;cursor:pointer;border:1px solid #eee}
-.session:hover{background:#fafafa}
-.chat{flex:1;display:flex;flex-direction:column}
-.chat-head{padding:14px;border-bottom:1px solid #eee}
-.chat-body{flex:1;padding:16px;background:linear-gradient(180deg,#e5ddd5,#e3dacb);overflow:auto;display:flex;flex-direction:column;gap:8px}
-.bubble{max-width:72%;padding:10px 12px;border-radius:12px}
-.me{align-self:flex-end;background:#eefbe9}
-.them{align-self:flex-start;background:#fff}
-.meta{font-size:12px;color:#555}
-.composer{display:flex;gap:10px;padding:12px;border-top:1px solid #eee}
-.input{flex:1;padding:10px;border-radius:999px;border:1px solid #ddd}
-.send{padding:10px 16px;border-radius:999px;border:0;background:linear-gradient(90deg,#fb8b55,#f8cfa7);font-weight:700;cursor:pointer}
+body{
+  margin:0;
+  font-family:Inter,system-ui;
+  background:#f2f2f2;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.chat{
+  width:520px;
+  height:620px;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,.15);
+  display:flex;
+  flex-direction:column;
+}
+.header{
+  padding:14px;
+  background:#F8CFAF;
+  border-radius:18px 18px 0 0;
+  font-weight:700;
+}
+.messages{
+  flex:1;
+  padding:14px;
+  overflow:auto;
+  background:#efe6dc;
+}
+.bubble{
+  padding:10px 14px;
+  border-radius:14px;
+  margin-bottom:8px;
+  max-width:70%;
+}
+.me{background:#dcf8c6;margin-left:auto;}
+.them{background:#fff;}
+.input{
+  display:flex;
+  gap:8px;
+  padding:12px;
+}
+input{
+  flex:1;
+  padding:10px;
+  border-radius:999px;
+  border:1px solid #ddd;
+}
+button{
+  padding:10px 16px;
+  border-radius:999px;
+  border:none;
+  background:#fb8b55;
+  color:#fff;
+  font-weight:700;
+  cursor:pointer;
+}
 </style>
 </head>
 
 <body>
 
-<div class="wrap">
-  <div class="panel sidebar">
-    <div class="head">
-      <div class="avatar"></div>
-      <div>
-        <div class="who" id="astroName">Gautam</div>
-        <div style="font-size:13px;color:#666">Online</div>
-      </div>
-    </div>
-    <div class="list" id="sessions">
-      <div style="color:#777">Waiting for customers…</div>
-    </div>
-  </div>
-
-  <div class="panel chat">
-    <div class="chat-head">
-      <div id="chatTitle">Select a session</div>
-      <div id="chatSub" style="font-size:13px;color:#666">No session selected</div>
-    </div>
-
-    <div class="chat-body" id="chatBody">
-      <div style="opacity:.8">No messages yet</div>
-    </div>
-
-    <div class="composer" id="composer" style="display:none">
-      <input id="reply" class="input" placeholder="Reply to customer…"/>
-      <button id="send" class="send">Send</button>
-    </div>
+<div class="chat">
+  <div class="header">Astrologer: Gautam</div>
+  <div id="messages" class="messages"></div>
+  <div class="input">
+    <input id="text" placeholder="Reply to customer">
+    <button onclick="send()">Send</button>
   </div>
 </div>
 
-<!-- ✅ PubNub SDK (ONLY ONCE) -->
-<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-
 <script>
-/* ================= CONFIG ================= */
-const PUBLISH_KEY = "pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc";
-const SUBSCRIBE_KEY = "sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2";
-const ASTRO = "Gautam";
-
-/* ================= INIT ================= */
-const uuid = "astro_" + ASTRO + "_" + Math.random().toString(36).slice(2,6);
+/* CONFIG */
+const CHANNEL = "astro-Gautam";
 
 const pubnub = new PubNub({
-  publishKey: PUBLISH_KEY,
-  subscribeKey: SUBSCRIBE_KEY,
-  uuid
+  publishKey: "pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc",
+  subscribeKey: "sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2",
+  uuid: "astro-Gautam"
 });
 
-const CONTROL = "astro_" + ASTRO + "_control";
-const sessions = {};
-let activeSession = null;
+/* Subscribe */
+pubnub.subscribe({ channels: [CHANNEL] });
 
-/* ================= UI ================= */
-const sessionsEl = document.getElementById("sessions");
-const chatBody = document.getElementById("chatBody");
-const chatTitle = document.getElementById("chatTitle");
-const chatSub = document.getElementById("chatSub");
-const composer = document.getElementById("composer");
-const reply = document.getElementById("reply");
-
-/* ================= LISTENER ================= */
+/* Receive messages */
 pubnub.addListener({
-  message: (e) => {
-    const m = e.message;
-    const ch = e.channel;
-
-    if (m?.type === "join" && m.astro === ASTRO) {
-      if (!sessions[m.channel]) {
-        sessions[m.channel] = { id: m.channel, messages: [] };
-        renderSessions();
-      }
-    }
-
-    if (m?.sender && sessions[ch]) {
-      sessions[ch].messages.push(m);
-      if (activeSession === ch) renderMessage(m, "them");
-    }
+  message: e => {
+    addBubble(e.message.text, "them");
   }
 });
 
-/* ================= SUBSCRIBE ================= */
-pubnub.subscribe({ channels: [CONTROL] });
+function send(){
+  const text = document.getElementById("text").value.trim();
+  if(!text) return;
 
-/* ================= FUNCTIONS ================= */
-function renderSessions() {
-  sessionsEl.innerHTML = "";
-  Object.values(sessions).forEach(s => {
-    const d = document.createElement("div");
-    d.className = "session";
-    d.textContent = "Customer";
-    d.onclick = () => openSession(s.id);
-    sessionsEl.prepend(d);
+  pubnub.publish({
+    channel: CHANNEL,
+    message: { text }
   });
+
+  addBubble(text, "me");
+  document.getElementById("text").value="";
 }
 
-function openSession(id) {
-  activeSession = id;
-  chatBody.innerHTML = "";
-  chatTitle.textContent = "Live Session";
-  chatSub.textContent = id;
-  composer.style.display = "flex";
-
-  pubnub.subscribe({ channels: [id] });
-
-  pubnub.history({ channel: id, count: 50 }, (_, res) => {
-    res.messages.forEach(m =>
-      renderMessage(m.entry, m.entry.sender === uuid ? "me" : "them")
-    );
-  });
+function addBubble(text, who){
+  const div = document.createElement("div");
+  div.className = "bubble " + who;
+  div.textContent = text;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
 }
-
-function renderMessage(m, who) {
-  const b = document.createElement("div");
-  b.className = "bubble " + who;
-  b.textContent = m.text;
-  chatBody.appendChild(b);
-
-  const meta = document.createElement("div");
-  meta.className = "meta";
-  meta.textContent = new Date(m.ts || Date.now()).toLocaleTimeString();
-  chatBody.appendChild(meta);
-
-  chatBody.scrollTop = chatBody.scrollHeight;
-}
-
-/* ================= SEND ================= */
-document.getElementById("send").onclick = () => {
-  if (!reply.value || !activeSession) return;
-
-  const msg = {
-    sender: uuid,
-    text: reply.value,
-    ts: Date.now()
-  };
-
-  pubnub.publish({ channel: activeSession, message: msg });
-  renderMessage(msg, "me");
-  reply.value = "";
-};
 </script>
 
 </body>
 </html>
-
-
