@@ -123,6 +123,26 @@ function addBubble(text, who){
 }
 </script>
 
+  pubnub.addListener({
+  message: e => {
+    const m = e.message;
+    const ch = e.channel;
+
+    // new customer joined
+    if(m?.type==="join" && m.astro===ASTRO){
+      pubnub.subscribe({channels:[m.session]});
+      createSessionUI(m.session, m.customer);
+      return;
+    }
+
+    // chat message
+    if(m?.text){
+      addMessage(ch, m.text, m.sender===pubnub.getUUID()?"me":"them");
+    }
+  }
+});
+
+
 </body>
 </html>
 
