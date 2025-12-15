@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>Astrologer Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 
 <style>
@@ -12,8 +11,8 @@ body{margin:0;font-family:system-ui;background:#f6f6f8;height:100vh;display:flex
 .sidebar{width:260px;background:#fff;padding:14px;border-right:1px solid #ddd}
 .chat{flex:1;display:flex;flex-direction:column}
 .chatBody{flex:1;padding:14px;overflow-y:auto}
-.msg{padding:10px 12px;border-radius:12px;margin-bottom:8px;max-width:70%}
-.customer{background:#fff;margin-right:auto}
+.msg{padding:10px 12px;border-radius:12px;margin-bottom:8px;max-width:80%}
+.customer{background:#fff}
 .me{background:#ffe6d5;margin-left:auto}
 .controls{display:flex;gap:8px;padding:12px;background:#fff}
 input{flex:1;padding:10px;border-radius:20px}
@@ -25,7 +24,7 @@ button{padding:10px 16px;border-radius:20px;background:#F8CFAF;border:none;font-
 
 <div class="sidebar">
   <h3>Astrologer: Gautam</h3>
-  <p>Live Chat</p>
+  <p>Live Customer Chat</p>
 </div>
 
 <div class="chat">
@@ -51,7 +50,7 @@ pubnub.addListener({
   message:e=>{
     const m=e.message;
     if(m.sender==="Astrologer_Gautam")return;
-    addMsg(`${m.sender}: ${m.text}`,"customer");
+    addMsg(`${m.sender}: ${m.text}`);
   }
 });
 
@@ -60,7 +59,7 @@ function send(){
   const text=input.value.trim();
   if(!text)return;
   input.value="";
-  addMsg(text,"me");
+  addMsg("You: "+text,true);
 
   pubnub.publish({
     channel:CHANNEL,
@@ -68,9 +67,9 @@ function send(){
   });
 }
 
-function addMsg(text,type){
+function addMsg(text,me=false){
   const d=document.createElement("div");
-  d.className="msg "+(type==="me"?"me":"customer");
+  d.className="msg "+(me?"me":"customer");
   d.textContent=text;
   chatBody.appendChild(d);
   chatBody.scrollTop=chatBody.scrollHeight;
@@ -79,3 +78,4 @@ function addMsg(text,type){
 
 </body>
 </html>
+
