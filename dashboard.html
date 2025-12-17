@@ -6,118 +6,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-body{margin:0;font-family:system-ui;display:flex;height:100vh}
-.sidebar{width:260px;background:#fff;padding:14px}
+body{margin:0;font-family:system-ui;background:#f6f6f8;height:100vh;display:flex}
+.sidebar{width:260px;background:#fff;padding:14px;border-right:1px solid #ddd}
 .chat{flex:1;display:flex;flex-direction:column}
-.chatBody{flex:1;padding:12px;overflow:auto}
-.msg{padding:10px;border-radius:10px;margin-bottom:6px;max-width:80%}
+.chatBody{flex:1;padding:14px;overflow-y:auto}
+.msg{padding:10px 12px;border-radius:12px;margin-bottom:8px;max-width:80%}
 .customer{background:#fff}
 .me{background:#ffe6d5;margin-left:auto}
-.controls{display:flex;padding:10px;background:#fff}
+.controls{display:flex;gap:8px;padding:12px;background:#fff}
 </style>
 </head>
 
 <body>
 
 <div class="sidebar">
-  <h3>Astrologer Gautam</h3>
-  <div id="sessions"></div>
+  <h3>Astrologer: Gautam</h3>
+  <p id="status">Waiting for sessions…</p>
 </div>
 
 <div class="chat">
   <div id="chatBody" class="chatBody"></div>
   <div class="controls">
-    <input id="reply">
+    <input id="reply" placeholder="Reply…">
     <button onclick="send()">Send</button>
   </div>
 </div>
 
 <script>
-const firebaseConfig = {
-  /* YOUR FIREBASE CONFIG */
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
-
 const astrologerId="Gautam";
-let activeSession=null;
-let pubnub;
+let pubnub,currentChannel=null;
 
-/* ---------------- LOAD SESSIONS ---------------- */
-(async function(){
-  const snap = await db
-    .collection("sessions")
-    .where("astrologerId","==",astrologerId)
-    .where("status","==","active")
-    .get();
+/* INIT PUBNUB */
+pubnub=new PubNub({
+  publishKey:"pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc",
+  subscribeKey:"sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2",
+  uuid:"Astrologer_"+astrologerId
+});
 
-  const channels=[];
-  snap.forEach(d=>{
-    const s=d.data();
-    channels.push(s.channel);
-    addSessionButton(d.id,s.channel);
-  });
+/* DEMO: subscribe dynamically when session appears */
+pubnub.addListener({
+  message:e=>{
+    const m=e.message;
+    currentChannel=e.channel;
+    addMsg(m.senderId+": "+m.text,"customer");
+  }
+});
 
-  pubnub=new PubNub({
-    publishKey:"pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc",
-    subscribeKey:"sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2",
-    uuid:astrologerId
-  });
+pubnub.subscribe({channels:[]});
 
-  pubnub.subscribe({channels});
-
-  pubnub.addListener({
-    message:e=>{
-      if(e.channel!==activeSession) return;
-      const m=e.message;
-      addMsg(m.text,"customer",m.ts);
-    }
-  });
-})();
-
-/* ---------------- UI ---------------- */
-function addSessionButton(id,channel){
-  const b=document.createElement("button");
-  b.textContent=id;
-  b.onclick=()=>{
-    activeSession=channel;
-    chatBody.innerHTML="";
-  };
-  sessions.appendChild(b);
-}
-
-function addMsg(text,type,ts){
-  const d=document.createElement("div");
-  d.className="msg "+type;
-  d.innerHTML=text+`<div style="font-size:11px">${new Date(ts).toLocaleTimeString()}</div>`;
-  chatBody.appendChild(d);
-  chatBody.scrollTop=chatBody.scrollHeight;
-}
-
-/* ---------------- SEND ---------------- */
 function send(){
-  if(!activeSession) return alert("Select session");
-  const t=reply.value.trim();
-  if(!t)return;
+  if(!currentChannel)return alert("No active session");
+  const t=reply.value.trim(); if(!t)return;
   reply.value="";
-  addMsg(t,"me",Date.now());
+  addMsg("You: "+t,"me");
 
   pubnub.publish({
-    channel:activeSession,
-    message:{
-      senderId:astrologerId,
-      text:t,
-      ts:Date.now()
-    }
+    channel:currentChannel,
+    message:{senderId:astrologerId,text:t,ts:Date.now()}
   });
+}
+
+function addMsg(t,c){
+  const d=document.createElement("div");
+  d.className="msg "+c;
+  d.textContent=t;
+  chatBody.appendChild(d);
+  chatBody.scrollTop=chatBody.scrollHeight;
 }
 </script>
 
 </body>
 </html>
-
-
