@@ -5,18 +5,12 @@
 <title>Astrologer Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- PubNub SDK -->
 <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:system-ui;
-  background:#f6f6f8;
-  height:100vh;
-  display:flex;
-}
+body{margin:0;font-family:system-ui;background:#f6f6f8;height:100vh;display:flex}
 
+/* SIDEBAR */
 .sidebar{
   width:260px;
   background:#fff;
@@ -24,17 +18,21 @@ body{
   border-right:1px solid #ddd;
 }
 
-.chat{
-  flex:1;
-  display:flex;
-  flex-direction:column;
+.sidebar h3{margin-top:0}
+.detail{font-size:14px;margin-bottom:6px}
+
+.status{
+  margin-top:12px;
+  font-size:13px;
+  font-weight:600;
 }
 
-.chatBody{
-  flex:1;
-  padding:14px;
-  overflow-y:auto;
-}
+.online{color:green}
+.offline{color:red}
+
+/* CHAT */
+.chat{flex:1;display:flex;flex-direction:column}
+.chatBody{flex:1;padding:14px;overflow-y:auto}
 
 .msg{
   padding:10px 12px;
@@ -43,15 +41,11 @@ body{
   max-width:80%;
 }
 
-.customer{
-  background:#fff;
-}
+.customer{background:#fff}
+.me{background:#ffe6d5;margin-left:auto}
+.system{background:#fff3cd;font-size:13px}
 
-.me{
-  background:#ffe6d5;
-  margin-left:auto;
-}
-
+/* CONTROLS */
 .controls{
   display:flex;
   gap:8px;
@@ -59,14 +53,14 @@ body{
   background:#fff;
 }
 
-.controls input{
+input{
   flex:1;
   padding:10px;
   border-radius:20px;
   border:1px solid #ccc;
 }
 
-.controls button{
+button{
   padding:10px 16px;
   border-radius:20px;
   background:#F8CFAF;
@@ -80,7 +74,12 @@ body{
 
 <div class="sidebar">
   <h3>Astrologer: Gautam</h3>
-  <p>Live Customer Chat</p>
+
+  <div id="customerDetails">
+    <p><strong>Waiting for customer…</strong></p>
+  </div>
+
+  <div id="custStatus" class="status offline">● Customer Offline</div>
 </div>
 
 <div class="chat">
@@ -93,63 +92,82 @@ body{
 </div>
 
 <script>
-/* ================= PUBNUB SETUP ================= */
-const CHANNEL = "astro_gautam_chat";
+/* ================= PUBNUB ================= */
+const CHANNEL="astro_gautam_chat";
 
-const pubnub = new PubNub({
-  publishKey: "pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc",
-  subscribeKey: "sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2",
-  uuid: "Astrologer_Gautam"
+const pubnub=new PubNub({
+  publishKey:"pub-c-a90a128a-4e77-4b6a-bbb3-59d0fb688ddc",
+  subscribeKey:"sub-c-1b514e35-fab1-4baf-88f1-6b628ab7e9c2",
+  uuid:"Astrologer_Gautam"
 });
 
-/* ================= DOM ================= */
-const chatBody = document.getElementById("chatBody");
+pubnub.subscribe({channels:[CHANNEL],withPresence:true});
 
-/* ================= SUBSCRIBE ================= */
-pubnub.subscribe({ channels: [CHANNEL] });
+const chatBody=document.getElementById("chatBody");
+const detailsBox=document.getElementById("customerDetails");
+const statusEl=document.getElementById("custStatus");
 
-/* ================= RECEIVE ================= */
+/* ================= LISTEN ================= */
 pubnub.addListener({
-  message: function (event) {
-    const m = event.message;
+  message:e=>{
+    const m=e.message;
+    if(m.sender===pubnub.getUUID())return;
 
-    // Ignore own messages
-    if (m.sender === pubnub.getUUID()) return;
+    // 🧾 CUSTOMER DETAILS MESSAGE
+    if(m.text.startsWith("🧾")){
+      renderDetails(m.text);
+      return;
+    }
 
-    addMsg(`${m.sender}: ${m.text}`, false);
+    addMsg(`${m.sender}: ${m.text}`,"customer");
+  },
+
+  presence:e=>{
+    if(e.uuid.startsWith("Customer_")){
+      if(e.action==="join"){
+        statusEl.textContent="● Customer Online";
+        statusEl.className="status online";
+      }
+      if(e.action==="leave"||e.action==="timeout"){
+        statusEl.textContent="● Customer Offline";
+        statusEl.className="status offline";
+      }
+    }
   }
 });
 
 /* ================= SEND ================= */
 function send(){
-  const input = document.getElementById("reply");
-  const text = input.value.trim();
-  if(!text) return;
+  const input=document.getElementById("reply");
+  const text=input.value.trim();
+  if(!text)return;
 
-  input.value = "";
+  input.value="";
+  addMsg("You: "+text,"me");
 
-  // show locally
-  addMsg("You: " + text, true);
-
-  // send to customer
   pubnub.publish({
-    channel: CHANNEL,
-    message: {
-      sender: pubnub.getUUID(),
-      text: text
-    }
+    channel:CHANNEL,
+    message:{sender:pubnub.getUUID(),text}
   });
 }
 
-/* ================= UI HELPER ================= */
-function addMsg(text, me){
-  const d = document.createElement("div");
-  d.className = "msg " + (me ? "me" : "customer");
-  d.textContent = text;
+/* ================= HELPERS ================= */
+function addMsg(text,type){
+  const d=document.createElement("div");
+  d.className="msg "+type;
+  d.textContent=text;
   chatBody.appendChild(d);
-  chatBody.scrollTop = chatBody.scrollHeight;
+  chatBody.scrollTop=chatBody.scrollHeight;
+}
+
+function renderDetails(text){
+  const lines=text.split("\n").slice(1);
+  detailsBox.innerHTML="<h4>Customer Details</h4>"+
+    lines.map(l=>`<div class="detail">${l}</div>`).join("");
 }
 </script>
 
 </body>
+</html>
+
 </html>
